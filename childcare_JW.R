@@ -54,7 +54,7 @@ ggplot(data=cost_burden_by_state,
                    fill=state_name,
                    label=percentage_of_income))+
   geom_col(position="dodge")+
-  geom_label(vjust=1)+
+  geom_text(position=position_dodge(.5))+
   labs(title="Annual amount spent on childcare is tied to states' average income",
        subtitle="even across types of providers.",
        caption="GA annual income = $40,768
