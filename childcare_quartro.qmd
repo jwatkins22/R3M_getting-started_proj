@@ -1,0 +1,88 @@
+---
+title: "Childcare Cost Burdens in Georgia and Washington, DC"
+author: "Jennifer Watkins"
+format: html
+execute:
+  echo: false
+  warning: false
+  message: false
+  output: true
+---
+```{r}
+# packages
+library(tidyverse)
+library(janitor)
+library(scales)
+
+#data
+childcare <- read_csv("childcare_infants.csv")
+
+#data frames
+childcare_cost_burden <- childcare |> 
+  mutate(median_center_annual = (median_center_infant*52),
+         median_family_annual = (median_family_infant*52),
+         percent_income_family = (median_family_annual/median_income_2018)*100,
+         percent_income_center = (median_center_annual/median_income_2018)*100)
+
+DC_childcare_cost_burden <- childcare_cost_burden |> 
+  filter(state_abbreviation=="DC") |> 
+  drop_na(percent_income_family,percent_income_family)
+
+GA_childcare_cost_burden <- childcare_cost_burden |>
+  filter(state_abbreviation=="GA") |> 
+  drop_na(percent_income_family,percent_income_family) |> 
+  summarize(percent_income_family_ga=median(percent_income_family),
+            percent_income_center_ga=median(percent_income_center),
+            median_income_2018_ga=median(median_income_2018),
+            state_name=unique(state_name)) |> 
+  rename(percent_income_family=percent_income_family_ga,
+         percent_income_center=percent_income_center_ga,
+         median_income_2018=median_income_2018_ga)
+
+cost_burden_by_state <- bind_rows(DC_childcare_cost_burden,GA_childcare_cost_burden) |> 
+  select(state_name,median_income_2018,percent_income_family,percent_income_center) |> 
+  pivot_longer(cols=c(percent_income_family,percent_income_center),
+               names_to="care_type",
+               names_prefix="percent_income_",
+               values_to="percentage_of_income") |> 
+  mutate(percentage_of_income=percentage_of_income/100)
+
+percentage_of_income_formatted <- cost_burden_by_state |> 
+  mutate(percentage_of_income=percent(percentage_of_income,accuracy=.1))
+```
+# Definitions
+Median income
+: Median household income expressed in 2018 dollars. Used as the basis for percentage of income spent on child care.
+
+Median center cost
+: Median price charged for Center-based Care for infants (i.e. aged 0 through 23 months). A child care center is a facility outside a private home and is more likely to split childred up by age groups. Centers usually have a larger total group of children than family care.
+
+Median family cost
+: Full-time median price charged for Family Childcare for infants (i.e. aged 0 through 23 months). Family childcare is provided in a person's private home and are more likely to have mixed ages in one group of children. Family childcare usually has a smaller overall group of children.
+
+# Results
+
+* The percentage of a family's income spent on childcare is tied to the average income of the state, even across providers.
+  + For example, Georgia has a lower median income than DC, and has a significantly lower percentage of income spent on childcare
+* Families spent more on center-based childcare across states than they do when childcare is provided by family members.
+
+#### Fig. 1a
+```{r}
+# data viz
+
+ggplot(data=percentage_of_income_formatted,
+       mapping=aes(x=care_type,
+                   y=percentage_of_income,
+                   fill=state_name,
+                   label=percentage_of_income))+
+  geom_col(position="dodge")+
+  geom_label(vjust=1)+
+  labs(title="Income spent on childcare by state and provider",
+       caption="GA annual income = $40,768
+       DC annual income= $70,693",
+       x="Type of Childcare Provider",
+       y="Percentage of Income Spent",
+       fill="State")+
+  theme_minimal()
+```
+
